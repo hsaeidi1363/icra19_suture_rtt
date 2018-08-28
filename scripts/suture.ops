@@ -1,0 +1,45 @@
+import("rtt_ros")
+import("rtt_roscomm")
+import("rtt_rosnode")
+import("rtt_rosparam")
+import("rtt_geometry_msgs")
+import("rtt_sensor_msgs")
+import("rtt_std_msgs")
+import("rtt_tf")
+import("kdl_typekit")
+
+import("rtt_iiwa_msgs")
+
+import("icra19_suture_rtt")
+
+require("ros");
+ros.import( "rtt_rosparam" )
+
+loadComponent( "iiwa", "suture_rtt" )
+loadComponent( "tf",   "rtt_tf::RTT_TF" )
+
+setActivity( "iiwa", 0.01, 0, ORO_SCHED_OTHER )
+setActivity( "tf",  0.001, 0, ORO_SCHED_OTHER )
+iiwa.setCpuAffinity( 1 );
+tf.setCpuAffinity( 2 );
+
+connectPeers( "iiwa", "tf" )
+
+stream("iiwa.MsrIIWAJointPos",   ros.topic("/iiwa/state/JointPosition"))
+stream("iiwa.MsrIIWAJointVel",   ros.topic("/iiwa/state/JointVelocity"))
+stream("iiwa.MsrIIWAJointTrq",   ros.topic("/iiwa/state/JointTorque"))
+stream("iiwa.MsrIIWACartPos",    ros.topic("/iiwa/state/CartesianPose"))
+stream("iiwa.MsrIIWAWrench",     ros.topic("/iiwa/state/CartesianWrench"))
+stream("iiwa.MsrSTARJointState", ros.topic("/iiwa/joint_states22"))
+
+stream("iiwa.CmdIIWAJointPos",   ros.topic("/iiwa/command/JointPosition"))
+stream("iiwa.CmdIIWAJointVel",   ros.topic("/iiwa/command/JointVelocity"))
+stream("iiwa.CmdIIWACartPos",    ros.topic("/iiwa/command/CartesianPose"))
+
+iiwa.robot_description = "/iiwa/robot_description"
+iiwa.ref_frame = "iiwa_link_0"
+iiwa.tcp_frame = "iiwa_link_ee"
+
+iiwa.configure()
+iiwa.start()
+
