@@ -61,6 +61,18 @@ include_directories(
   include
 )
 
+add_library( stitch
+  src/stitch_base.cpp 
+  src/stitch_contact.cpp
+  src/stitch_knot.cpp
+  src/stitch_rotation.cpp
+  src/stitch_move_to_offset.cpp )
+
+add_dependencies( stitch
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS} )
+target_link_libraries( stitch ${catkin_LIBRARIES} lapack blas )
+
 orocos_component( suture_rtt src/suture_rtt.cpp )
 add_dependencies( suture_rtt
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
