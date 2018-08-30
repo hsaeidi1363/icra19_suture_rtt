@@ -57,7 +57,7 @@ geometry_msgs::Vector3 zero3() {
 
 StitchBase::StitchBase( const KDL::Frame& Rts, double f, double d, double t ):
   state( START ),
-  trajectory( 0.002 ),
+  trajectory( 0.01 ),
   Rts( Rts ),
   tension_f( f ), 
   tension_d( d ), 
@@ -150,6 +150,7 @@ Trajectory::Errno StitchBase::EvaluateTrajectory( KDL::Frame& kdlRt ) {
   Trajectory::Errno err;
   err = trajectory.Evaluate( tfRt,vw );
   tf::transformTFToKDL( tfRt, kdlRt );
+// add some stuff here 
 
   return err;
   

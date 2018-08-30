@@ -24,7 +24,7 @@ void StitchContact::Start( KDL::Frame& Rt) {
   //Rts.M = Rt.M;
   tf::Transform tfRt;
   tf::transformKDLToTF( Rt, tfRt );
-
+  std::cout << "inside Start of stitch contact: " <<Rt.p[0] << " "<<Rt.p[1] << " " <<Rt.p[2]<< std::endl;
   geometry_msgs::Twist msgvw;   
   msgvw.linear.x = 0.0; 
   msgvw.linear.y = 0.0;
@@ -34,8 +34,8 @@ void StitchContact::Start( KDL::Frame& Rt) {
   msgvw.angular.z = 0.0;
   
   geometry_msgs::Twist msgvw_max;
-  double max_linear_vel = 0.5;    // was 0.01 
-  double max_angular_vel = 0.5;
+  double max_linear_vel = 0.01;    // was 0.01 
+  double max_angular_vel = 0.01;
   msgvw_max.linear.x = max_linear_vel; 
   msgvw_max.linear.y = max_linear_vel;
   msgvw_max.linear.z = max_linear_vel; 
@@ -82,7 +82,9 @@ void StitchContact::InitNewTarget( const KDL::Frame& Rt1,
 //! Pure virtual Approach() implementation
 void StitchContact::Approach() {
   double approach_z = -0.01;
-  NewTarget( Rts_offset * KDL::Frame( KDL::Vector( 0.0, 0.0, approach_z ) ) );
+  KDL::Frame tmp = Rts_offset * KDL::Frame( KDL::Vector( 0.0, 0.0, approach_z ) );
+  NewTarget(  tmp);
+  std::cout << "new approach target:" << tmp.p[0] << " "<< tmp.p[1] << " " << tmp.p[2]<<std::endl;
 }
 
 //! Pure virtual Hover() implementation
@@ -120,6 +122,7 @@ StitchBase::State StitchContact::Evaluate( KDL::Frame& Rt,
   switch( state ) {
     
   case START: {
+	// this only initiates a trajectory to reach above the tissue
     ret_state = START;
     Rts_offset.M = Rts.M; // This should solve rotation to contact problem
     StitchContact::Start( Rt );
@@ -135,7 +138,7 @@ StitchBase::State StitchContact::Evaluate( KDL::Frame& Rt,
       std::cout << name << " Hover ..." << std::endl;
       StitchContact::Hover();
     }
-
+	// IK not doing anything now since it is empty
     InverseKinematics( Rt, q );
     break;
   }
@@ -144,7 +147,7 @@ StitchBase::State StitchContact::Evaluate( KDL::Frame& Rt,
     ret_state = HOVER;        
     
     if( EvaluateTrajectory( Rt ) == Trajectory::EXPIRED ) {
-      if( accept_stitch ){
+      if( accept_stitch ){// this quickly passes since I set the accept stitch equal to true
 	Rts_offset.M = Rts.M; //
 	state = CONTACT;
 	std::cout << name << " Contact..." << std::endl;

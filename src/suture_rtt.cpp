@@ -31,6 +31,9 @@
 #include <kdl_conversions/kdl_msg.h>
 #include <tf_conversions/tf_kdl.h>
 
+#include<icra19_suture_rtt/stitch_contact.hpp>
+#include<icra19_suture_rtt/stitch_base.hpp>
+
 #include <rtt/Component.hpp>         // use for ORO_CREATE_COMPONENT
 
 void read_line( std::ifstream& ifs, double xyzrpy[6] ){
@@ -72,6 +75,8 @@ suture_rtt::suture_rtt( const std::string& name ):
 
   init_rcm( false ),
   test_traj_initialized(false),
+  test_stitch_defined(false),
+
 
   trajectory( 0.01 ),
   play_file( false ){
@@ -268,6 +273,8 @@ void suture_rtt::updateHook(){
       }
     }
     */
+	// psuedo code: first check if the traj is detected make a plan via suture array (including where each stitch should go)=> execute the finite state machine code one by one
+	
 	if(!test_traj_initialized){
 		// find the current position and add some dummy targets to it
 		KDL::Frame kdlRt;
@@ -282,6 +289,7 @@ void suture_rtt::updateHook(){
 			std::cout << " J1: " <<jointpositions(0)<< " J2: " <<jointpositions(1)<< " J3: " <<jointpositions(2)<< " J4: " <<jointpositions(3)<< " J5: " <<jointpositions(4)<< " J6: " <<jointpositions(5)<< " J7: " <<jointpositions(6) << std::endl;
 			fk_solv->JntToCart( jointpositions, kdlRt );
 			std::cout <<"initial pose: " << kdlRt.p[0] << " " <<kdlRt.p[1] << " "<< kdlRt.p[2] << std::endl;
+			/*			
 			tf::Transform tfRt;
 			tf::transformKDLToTF( kdlRt, tfRt );
 			geometry_msgs::Twist msgvw;
@@ -297,7 +305,7 @@ void suture_rtt::updateHook(){
 			msgvw_max.angular.y = 0.01; 
 			msgvw_max.angular.z = 0.01;
 			//trajectory.InitializeMode( tfRt, msgvw, msgvw_max );
-		  	test_traj_initialized = true;
+		  	
 			// initialization is done 
 			//kdlRt.p.x(0.1);
 			//kdlRt.p.y(-0.54) ;
@@ -327,15 +335,35 @@ void suture_rtt::updateHook(){
           std::vector<double> qdddmax( jl, 10.0 );
           trajectory.InitializeMode( js, qdmax, qddmax, qdddmax );			
 		  js.position[0] += 1.0;
-		  trajectory.Push(js);		
-
+			*/
+		//  trajectory.Push(js);		
+			if(!test_stitch_defined){
+				double contact_force = 1.0;
+				double contact_distance = 0.1;
+				double tension_force = 2.0;
+				double tension_distance = 0.2;
+				kdlRt.p.x(0.2);
+				kdlRt.p.y(-0.54) ;
+				kdlRt.p.z(0.61);
+								
+				test_stitch = new StitchContact( 
+								kdlRt,
+								contact_force,
+								contact_distance,
+								tension_force,
+								tension_distance );
+				//test_stitch->Start(kdlRt);
+				std::cout << "set a new target at : "<< kdlRt.p[0] << " "<<kdlRt.p[1] <<" " <<kdlRt.p[2] <<std::endl;
+				test_stitch_defined = true;
+			}
+			test_traj_initialized = true;
 		}
 
 	}else{
-		  tf::Transform tfRt;
+		  /*tf::Transform tfRt;
 		  KDL::Twist vw;
 		  
-		  /*switch( trajectory.Evaluate( tfRt, vw ) ){
+		  switch( trajectory.Evaluate( tfRt, vw ) ){
 		    case Trajectory::SUCCESS:
 		      {
 		        KDL::Frame kdlRt;
@@ -360,7 +388,7 @@ void suture_rtt::updateHook(){
 		    default:
 		      break;
 		  }  */
-			KDL::JntArray q_new;
+		/*	KDL::JntArray q_new;
 			switch( trajectory.Evaluate( q_new ) ){
 		    case Trajectory::SUCCESS:
 		      {
@@ -377,7 +405,30 @@ void suture_rtt::updateHook(){
 		    default:
 		      break;
 		  }          
- 
+ 		*/
+			KDL::Frame tmp_Rt;
+			fk_solv->JntToCart( getJointPos(),tmp_Rt );
+
+		 	KDL::Twist vw;
+			KDL::JntArray q, qd;
+			KDL::Vector f(0.0, 0.0, 0.0);
+			geometry_msgs::Vector3 offset;
+			offset.x = 0.0; offset.y = 0.0; offset.z = 0.0;
+			//std::cout << "before evaluate" << std::endl;
+			StitchBase::State state = test_stitch->Evaluate( tmp_Rt, 
+									vw, 
+									q, 
+									qd, 
+									f,
+									true,
+									false,
+									offset ); // some of the variables are not actually set and the default zero values are called
+		
+				KDL::JntArray q_old = getJointPos();
+				KDL::JntArray q_new;
+				ik_solv->CartToJnt( q_old, tmp_Rt, q_new  );
+				setJointPos( q_new );
+			//std::cout<< "got this command back from solver: " << q_new(0) <<" "<< q_new(1)<<" "<< q_new(2)<<" "<< q_new(3)<<" "<< q_new(4)<<" "<< q_new(5)<<" "<< q_new(6) << std::endl;
 
 	}
 

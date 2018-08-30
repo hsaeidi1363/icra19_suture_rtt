@@ -81,6 +81,7 @@ target_link_libraries(suture_rtt
   ${catkin_LIBRARIES}
   ${orocos_kdl_LIBRARIES}
   ${kdl_conversions_LIBRARIES}
+  stitch
 )
 # add this one later  stitch )
 
