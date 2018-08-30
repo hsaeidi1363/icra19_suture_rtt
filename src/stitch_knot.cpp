@@ -39,7 +39,7 @@ StitchBase::State StitchKnot::Evaluate( KDL::Frame& Rt,
   
   double dq6;
   StitchBase::State ret_state = IDLE;
-  
+  //std::cout << "inside the evaluate function "<<std::endl;
   KDL::Vector offset( offset_vector.x, offset_vector.y, offset_vector.z);
   Rts_offset = Rts * KDL::Frame( offset );
   
@@ -48,16 +48,19 @@ StitchBase::State StitchKnot::Evaluate( KDL::Frame& Rt,
   tension_d = tension_vector.z;
   tension_f = tension_force.z;
   
-  double ROTATION_ANGLE = 0.0; // was M_PI_2/2
+  double ROTATION_ANGLE = 0.5; // was M_PI_2/2
   
   if (cur_loop == 1 ) {
     dq6 = ROTATION_ANGLE;
+    //std::cout << "current loop: 1 "<<std::endl;
   }
   else if (cur_loop < num_loops) {
     dq6 = 0;
+    //std::cout << "current loop: less than num_loops "<<std::endl;
   }
   else {
     dq6 = -ROTATION_ANGLE;
+    //std::cout << "current loop: negative rotation "<<std::endl;
   }
   
   if( cur_loop <= num_loops ) {
@@ -71,7 +74,7 @@ StitchBase::State StitchKnot::Evaluate( KDL::Frame& Rt,
       
       std::cout << name << " Joint state..." << std::endl;
       state = JOINTSTATE;
-      
+      std::cout << "number of rows in q: " << q.rows() <<std::endl;
       sensor_msgs::JointState js;
       js.name.resize( q.rows() );
       js.position.resize( q.rows() );
@@ -90,6 +93,7 @@ StitchBase::State StitchKnot::Evaluate( KDL::Frame& Rt,
       std::vector<double> qddmax( q.rows(), 10.0 );
       std::vector<double> qdddmax( q.rows(), 10.0 );
       trajectory.InitializeMode( js, qdmax, qddmax, qdddmax );
+      std::cout << "initialized the joint trajectory generator"<< std::endl;
       KDL::JntArray qs( q );
       
       if ( ( dq6 + qs(6) ) > (170.0*M_PI/180) ) {

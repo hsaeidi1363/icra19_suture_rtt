@@ -32,6 +32,7 @@
 #include <tf_conversions/tf_kdl.h>
 
 #include<icra19_suture_rtt/stitch_contact.hpp>
+#include<icra19_suture_rtt/stitch_knot.hpp>
 #include<icra19_suture_rtt/stitch_base.hpp>
 
 #include <rtt/Component.hpp>         // use for ORO_CREATE_COMPONENT
@@ -338,21 +339,43 @@ void suture_rtt::updateHook(){
 			*/
 		//  trajectory.Push(js);		
 			if(!test_stitch_defined){
-				double contact_force = 1.0;
-				double contact_distance = 0.1;
-				double tension_force = 2.0;
-				double tension_distance = 0.2;
-				kdlRt.p.x(0.2);
-				kdlRt.p.y(-0.54) ;
-				kdlRt.p.z(0.61);
-								
-				test_stitch = new StitchContact( 
+				bool dbg_contact = false;
+				if (dbg_contact){
+				// quick test for the contact stitch
+					double contact_force = 1.0;
+					double contact_distance = 0.1;
+					double tension_force = 2.0;
+					double tension_distance = 0.2;
+					kdlRt.p.x(0.1);
+					//kdlRt.p.y(-0.54) ;
+					kdlRt.p.z(0.56);
+									
+					test_stitch = new StitchContact( 
 								kdlRt,
 								contact_force,
 								contact_distance,
 								tension_force,
 								tension_distance );
 				//test_stitch->Start(kdlRt);
+				}else{
+
+					// quick test for the knot stitch
+					size_t nloops = 2;
+					double contact_force = 1.0;
+					double contact_distance = 0.1;
+					double tension_force = 2.0;
+					double tension_distance = 0.2;
+					kdlRt.p.x(0.1);
+					//kdlRt.p.y(-0.54) ;
+					kdlRt.p.z(0.56);
+					test_stitch = new StitchKnot(   kdlRt,
+									nloops,								
+									contact_force,
+									contact_distance,
+									tension_force,
+									tension_distance); 
+				}
+				
 				std::cout << "set a new target at : "<< kdlRt.p[0] << " "<<kdlRt.p[1] <<" " <<kdlRt.p[2] <<std::endl;
 				test_stitch_defined = true;
 			}
@@ -406,11 +429,13 @@ void suture_rtt::updateHook(){
 		      break;
 		  }          
  		*/
+			//std::cout << " before evaluate" << std::endl;
 			KDL::Frame tmp_Rt;
 			fk_solv->JntToCart( getJointPos(),tmp_Rt );
 
 		 	KDL::Twist vw;
-			KDL::JntArray q, qd;
+			KDL::JntArray q = getJointPos();
+			KDL::JntArray qd = getJointVel();
 			KDL::Vector f(0.0, 0.0, 0.0);
 			geometry_msgs::Vector3 offset;
 			offset.x = 0.0; offset.y = 0.0; offset.z = 0.0;
@@ -423,14 +448,21 @@ void suture_rtt::updateHook(){
 									true,
 									false,
 									offset ); // some of the variables are not actually set and the default zero values are called
-		
-				KDL::JntArray q_old = getJointPos();
-				KDL::JntArray q_new;
+
+			
+			KDL::JntArray q_old = getJointPos();
+			KDL::JntArray q_new;
+			if(state == StitchBase::JOINTSTATE){
+				q_new = q;
+			}else{
 				ik_solv->CartToJnt( q_old, tmp_Rt, q_new  );
-				setJointPos( q_new );
+			}
+
+			setJointPos( q_new );
 			//std::cout<< "got this command back from solver: " << q_new(0) <<" "<< q_new(1)<<" "<< q_new(2)<<" "<< q_new(3)<<" "<< q_new(4)<<" "<< q_new(5)<<" "<< q_new(6) << std::endl;
 
 	}
+
 
 
     if( init_rcm ){
