@@ -147,7 +147,8 @@ private:
 // added HS
   bool test_traj_initialized;
   bool test_stitch_defined;
-  StitchContact* test_stitch;
+  StitchBase* test_stitch;
+  int test_stitch_seq;
 
   // use this to get the XYZ coordinates of the TCP
   std::vector<double> getXYZ( const std::vector<double>& xyz );

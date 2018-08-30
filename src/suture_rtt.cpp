@@ -77,6 +77,7 @@ suture_rtt::suture_rtt( const std::string& name ):
   init_rcm( false ),
   test_traj_initialized(false),
   test_stitch_defined(false),
+  test_stitch_seq(1),
 
 
   trajectory( 0.01 ),
@@ -209,173 +210,68 @@ bool suture_rtt::startHook() { return true; }
 
 void suture_rtt::updateHook(){
 
- // KDL::JntArray q_h_new( chain.getNrOfJoints() );
-//  q_h_new(0) = 0.1;
-//  q_h_new(1) = 0.2;
-//  q_h_new(2) = 0.1;
-//  q_h_new(3) = 0.3;
-//  q_h_new(4) = 0.1;
-//  q_h_new(5) = 0.4;
-//  q_h_new(6) = 0.1;
-  
-//  setJointPos( q_h_new ); 
-
-  //KDL::JntArray jointpositions = getJointPos();
-  //std::cout << " J1: " <<jointpositions(0)<< " J2: " <<jointpositions(1)<< " J7: " <<jointpositions(6) << std::endl;
-
   if( readIIWA() == suture_rtt::ESUCCESS && 
       readTool() == suture_rtt::ESUCCESS ){
   //  fk_solv->JntToCart( getJointPos(), msr_cart_pos );
 
 
-// good first test for IK stuff and etc
-/*
-		//rough test of the loop
-			KDL::Frame kdlRt;
-		    fk_solv->JntToCart( getJointPos(), kdlRt );
-		    kdlRt.p.x( 0.1 );
-    	    kdlRt.p.y( -0.54 );
-		  	kdlRt.p.z( 0.61 );
-	  
-		  	KDL::JntArray q_old = getJointPos();
-		  	KDL::JntArray q_new, qd_new( chain.getNrOfJoints() );
-	  
-		  	if( ik_solv->CartToJnt( q_old, kdlRt, q_new  ) == 0 )
-			    { setJointPos( q_new ); }
-			else
-			    { RTT::log(RTT::Warning) << "Inverse kinematics failed"<< RTT::endlog(); }
-		// end of rough test of the loop
-*/
 
-  /*  if( play_file ){
-      if( ifs.fail() || ifs.eof() ){
-		play_file = false;
-		ifs.close();
-      }
-      else{
-		double xyzrpy[6];
-		read_line( ifs, xyzrpy );
-		if( !ifs.fail() && !ifs.eof() ){
-	
-		 	KDL::Frame kdlRt;
-		    fk_solv->JntToCart( getJointPos(), kdlRt );
-		    kdlRt.p.x( xyzrpy[0] );
-    	    kdlRt.p.y( xyzrpy[1] );
-		  	kdlRt.p.z( xyzrpy[2]);
-	  
-		  	KDL::JntArray q_old = getJointPos();
-		  	KDL::JntArray q_new, qd_new( chain.getNrOfJoints() );
-	  
-		  	if( ik_solv->CartToJnt( q_old, kdlRt, q_new  ) == 0 )
-			    { setJointPos( q_new ); }
-			else
-			    { RTT::log(RTT::Warning) << "Inverse kinematics failed"<< RTT::endlog(); }
-		}
-      }
-    }
-    */
 	// psuedo code: first check if the traj is detected make a plan via suture array (including where each stitch should go)=> execute the finite state machine code one by one
 	
 	if(!test_traj_initialized){
 		// find the current position and add some dummy targets to it
 		KDL::Frame kdlRt;
 		KDL::JntArray jointpositions = getJointPos();
-		KDL::JntArray jointvelocities = getJointVel();
-		bool joints_zero =true;// = (fabs(jointpositions(0)) < 0.001 || fabs(jointpositions(0)) < 0.001); && (fabs(jointpositions(1)) < 0.001) && (fabs(jointpositions(2)) < 0.001) && (fabs(jointpositions(3)) < 0.001) && (fabs(jointpositions(4)) < 0.001) && (fabs(jointpositions(5)) < 0.001) && (fabs(jointpositions(6)) < 0.001);
+		bool joints_zero =true;
 		for (int i = 0; i < 7; ++i)
 			joints_zero = joints_zero && ( (fabs(jointpositions(i)) < 0.001) ||  (fabs(jointpositions(i)) > 3.1415) );
-		//std::cout << joints_zero << " " << (fabs(jointpositions(0)) < 0.001)<< " " << (fabs(jointpositions(1)) < 0.001)<< " " << (fabs(jointpositions(2)) < 0.001)<< " " << (fabs(jointpositions(3)) < 0.001)<< " " << (fabs(jointpositions(4)) < 0.001)<< " " << (fabs(jointpositions(5)) < 0.001)<< " " << (fabs(jointpositions(6)) < 0.001)<< endl;
-    	if(!joints_zero){
-			std::cout << joints_zero << endl;
-			std::cout << " J1: " <<jointpositions(0)<< " J2: " <<jointpositions(1)<< " J3: " <<jointpositions(2)<< " J4: " <<jointpositions(3)<< " J5: " <<jointpositions(4)<< " J6: " <<jointpositions(5)<< " J7: " <<jointpositions(6) << std::endl;
+    		if(!joints_zero){
 			fk_solv->JntToCart( jointpositions, kdlRt );
-			std::cout <<"initial pose: " << kdlRt.p[0] << " " <<kdlRt.p[1] << " "<< kdlRt.p[2] << std::endl;
-			/*			
-			tf::Transform tfRt;
-			tf::transformKDLToTF( kdlRt, tfRt );
-			geometry_msgs::Twist msgvw;
-			msgvw.linear.x = 0.0; msgvw.linear.y = 0.0;
-			msgvw.linear.z = 0.0; msgvw.angular.x = 0.0;
-			msgvw.angular.y = 0.0;  msgvw.angular.z = 0.0;
-	
-			geometry_msgs::Twist msgvw_max;
-			msgvw_max.linear.x = 0.01; 
-			msgvw_max.linear.y = 0.01;
-			msgvw_max.linear.z = 0.02; // was 0.01
-			msgvw_max.angular.x = 0.01; 
-			msgvw_max.angular.y = 0.01; 
-			msgvw_max.angular.z = 0.01;
-			//trajectory.InitializeMode( tfRt, msgvw, msgvw_max );
-		  	
-			// initialization is done 
-			//kdlRt.p.x(0.1);
-			//kdlRt.p.y(-0.54) ;
-			//kdlRt.p.z(0.61);
-			//tf::Transform tfRt_target;
-			//tf::transformKDLToTF( kdlRt, tfRt_target );
-			//geometry_msgs::Twist vw_target;
-			//trajectory.Push(tfRt_target, vw_target);
-			int jl = 7;
-			sensor_msgs::JointState js;
-
-	        js.name.resize( jl );
-          	js.position.resize( jl );
-          	js.velocity.resize( jl );
-          	js.effort.resize( jl );
-
-          // With joint limit /AS 10-29-2014
-          for( size_t i=0; i<jl; i++ ){
-            js.position[i] = jointpositions(i);
-            js.velocity[i] = jointvelocities(i);
-            js.effort[i] = 0.0;
-            js.name[i] = std::string( "J" );
-          }
-
-          std::vector<double> qdmax( jl, 0.2 );
-          std::vector<double> qddmax( jl, 10.0 );
-          std::vector<double> qdddmax( jl, 10.0 );
-          trajectory.InitializeMode( js, qdmax, qddmax, qdddmax );			
-		  js.position[0] += 1.0;
-			*/
-		//  trajectory.Push(js);		
+			std::cout <<"initial pose: " << kdlRt.p[0] << " " <<kdlRt.p[1] << " "<< kdlRt.p[2] << std::endl;		
 			if(!test_stitch_defined){
-				bool dbg_contact = false;
-				if (dbg_contact){
-				// quick test for the contact stitch
-					double contact_force = 1.0;
-					double contact_distance = 0.1;
-					double tension_force = 2.0;
-					double tension_distance = 0.2;
-					kdlRt.p.x(0.1);
-					//kdlRt.p.y(-0.54) ;
-					kdlRt.p.z(0.56);
+				switch(test_stitch_seq){
+					case 1: 
+						// quick test for the contact stitch
+						{
+						double contact_force = 1.0;
+						double contact_distance = 0.1;
+						double tension_force = 2.0;
+						double tension_distance = 0.2;
+						kdlRt.p.x(0.1);
+						kdlRt.p.z(0.56);
 									
-					test_stitch = new StitchContact( 
-								kdlRt,
-								contact_force,
-								contact_distance,
-								tension_force,
-								tension_distance );
-				//test_stitch->Start(kdlRt);
-				}else{
-
-					// quick test for the knot stitch
-					size_t nloops = 2;
-					double contact_force = 1.0;
-					double contact_distance = 0.1;
-					double tension_force = 2.0;
-					double tension_distance = 0.2;
-					kdlRt.p.x(0.1);
-					//kdlRt.p.y(-0.54) ;
-					kdlRt.p.z(0.56);
-					test_stitch = new StitchKnot(   kdlRt,
-									nloops,								
+						test_stitch = new StitchContact( 
+									kdlRt,
 									contact_force,
 									contact_distance,
 									tension_force,
-									tension_distance); 
+									tension_distance );
+						}
+						break;
+					case 2:
+
+						// quick test for the knot stitch
+						{
+						size_t nloops = 2;
+						double contact_force = 1.0;
+						double contact_distance = 0.1;
+						double tension_force = 2.0;
+						double tension_distance = 0.2;
+						kdlRt.p.x(0.1);
+						kdlRt.p.y(-0.54) ;
+						kdlRt.p.z(0.56);
+						test_stitch = new StitchKnot(   kdlRt,
+										nloops,								
+										contact_force,
+										contact_distance,
+										tension_force,
+										tension_distance); 
+						}
+						break;
+					default:
+						std::cout << "---finished the final step---- : " <<std::endl;
+						break;
 				}
-				
 				std::cout << "set a new target at : "<< kdlRt.p[0] << " "<<kdlRt.p[1] <<" " <<kdlRt.p[2] <<std::endl;
 				test_stitch_defined = true;
 			}
@@ -383,63 +279,15 @@ void suture_rtt::updateHook(){
 		}
 
 	}else{
-		  /*tf::Transform tfRt;
-		  KDL::Twist vw;
 		  
-		  switch( trajectory.Evaluate( tfRt, vw ) ){
-		    case Trajectory::SUCCESS:
-		      {
-		        KDL::Frame kdlRt;
-		        tf::transformTFToKDL( tfRt, kdlRt );
-
-		        KDL::JntArray q_old = getJointPos();
-		        KDL::JntArray q_new;
-
-		        if( ik_solv->CartToJnt( q_old, kdlRt, q_new  ) == 0 )
-		        { setJointPos( q_new); }
-		        else
-		        { RTT::log(RTT::Warning) << "Inverse kinematics failed"
-						 << RTT::endlog(); }
-		      }
-		      break;
-		    case Trajectory::EXPIRED:
-		      {
-		         RTT::log(RTT::Warning) << "Reached the test target"
-						 << RTT::endlog();
-		      }
-		      break;
-		    default:
-		      break;
-		  }  */
-		/*	KDL::JntArray q_new;
-			switch( trajectory.Evaluate( q_new ) ){
-		    case Trajectory::SUCCESS:
-		      {
-		        
-		        setJointPos( q_new);
-		      }
-		      break;
-		    case Trajectory::EXPIRED:
-		      {
-		         RTT::log(RTT::Warning) << "Reached the test target"
-						 << RTT::endlog();
-		      }
-		      break;
-		    default:
-		      break;
-		  }          
- 		*/
-			//std::cout << " before evaluate" << std::endl;
 			KDL::Frame tmp_Rt;
 			fk_solv->JntToCart( getJointPos(),tmp_Rt );
-
 		 	KDL::Twist vw;
 			KDL::JntArray q = getJointPos();
-			KDL::JntArray qd = getJointVel();
+			KDL::JntArray qd = getJointVel(); // what should we do with this in the FRI driver?
 			KDL::Vector f(0.0, 0.0, 0.0);
 			geometry_msgs::Vector3 offset;
 			offset.x = 0.0; offset.y = 0.0; offset.z = 0.0;
-			//std::cout << "before evaluate" << std::endl;
 			StitchBase::State state = test_stitch->Evaluate( tmp_Rt, 
 									vw, 
 									q, 
@@ -459,8 +307,12 @@ void suture_rtt::updateHook(){
 			}
 
 			setJointPos( q_new );
-			//std::cout<< "got this command back from solver: " << q_new(0) <<" "<< q_new(1)<<" "<< q_new(2)<<" "<< q_new(3)<<" "<< q_new(4)<<" "<< q_new(5)<<" "<< q_new(6) << std::endl;
-
+			if (state == StitchBase::FINISHED && test_stitch_seq < 3){		
+				test_traj_initialized = false;
+				test_stitch_defined = false;
+				test_stitch_seq ++;
+			}
+			
 	}
 
 
