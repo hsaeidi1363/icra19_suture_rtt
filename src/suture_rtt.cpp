@@ -35,6 +35,9 @@
 #include<icra19_suture_rtt/stitch_knot.hpp>
 #include<icra19_suture_rtt/stitch_base.hpp>
 
+#include <pcl/common/transforms.h>
+
+
 #include <rtt/Component.hpp>         // use for ORO_CREATE_COMPONENT
 
 void read_line( std::ifstream& ifs, double xyzrpy[6] ){
@@ -103,6 +106,11 @@ suture_rtt::suture_rtt( const std::string& name ):
   addPort( "MsrSTARJointState", port_msr_jointstate );
   addPort( "CmdSTASJointState", port_cmd_jointstate );
   
+  // for debugging the plan points on the tissue
+  addPort( "Plan",    port_plan );
+  addPort( "Markers", port_markers );
+
+
   addProperty( "robot_description_name", robot_description_name );
   addProperty( "robot_description", robot_description );
   addProperty( "ref_frame", ref_frame );
@@ -209,7 +217,7 @@ bool suture_rtt::configureHook() {
 bool suture_rtt::startHook() { return true; }
 
 void suture_rtt::updateHook(){
-
+  ReadMarkers();
   if( readIIWA() == suture_rtt::ESUCCESS && 
       readTool() == suture_rtt::ESUCCESS ){
   //  fk_solv->JntToCart( getJointPos(), msr_cart_pos );
@@ -315,6 +323,11 @@ void suture_rtt::updateHook(){
 			
 	}
 
+    sensor_msgs::PointCloud2 ros_plan;
+    pcl::toROSMsg( plan, ros_plan );
+    ros_plan.header.stamp = ros::Time::now();
+    ros_plan.header.frame_id = "/camera_color_optical_frame";
+    port_plan.write( ros_plan );
 
 
     if( init_rcm ){
@@ -842,5 +855,120 @@ void suture_rtt::print( const KDL::Wrench& ft, const std::string& s ){
   print( ft.torque, "torque: " );
   std::cout << std::endl;
 }
+
+void suture_rtt::ReadMarkers(){
+
+  sensor_msgs::PointCloud2 ros_markers;
+//  if( port_markers.read( ros_markers ) == RTT::NewData && plan.empty() ){
+    if( port_markers.read( ros_markers )){
+    // markers are in the raytrix frame
+//    KDL::Frame kdl_Rt;
+//    if( EFAILURE == LookupTF( "/suture/base_link", "raytrix", kdl_Rt ) ){
+//      RTT::log(RTT::Error) << "Failed to query tf suture-raytrix" << RTT::endlog();
+//    }
+//    else{
+
+//      pcl::PointCloud<pcl::PointXYZI> pcl_markers;
+//      pcl::fromROSMsg( ros_markers, pcl_markers );
+      
+//      Eigen::Affine3d eig_Rt;
+//      tf::transformKDLToEigen( kdl_Rt, eig_Rt );
+      
+//      pcl::transformPointCloud( pcl_markers, markers, eig_Rt );
+      
+      // untanggle the repeats
+ 
+      pcl::fromROSMsg( ros_markers, markers );
+      pcl::PointXYZI p1 = markers[0];
+      pcl::PointXYZI p2 = markers[1];
+      
+      float x1 = p1.x;
+      float x2 = p2.x;
+      
+      float y1 = p1.y;
+      float y2 = p2.y;
+
+      float z1 = p1.z;
+      float z2 = p2.z;
+
+      if( y1 < y2 ){
+	float tmp;
+	tmp = x1; x1 = x2; x2 = tmp;
+	tmp = y1; y1 = y2; y2 = tmp;
+	tmp = z1; z1 = z2; z2 = tmp;
+      }
+
+      
+      int NUM_STITCHES = sqrt( (x2-x1)*(x2-x1) +
+			       (y2-y1)*(y2-y1) +
+			       (z2-z1)*(z2-z1) ) / 0.005;
+	
+      float dx=(x2-x1)/(NUM_STITCHES+1);
+      float dy=(y2-y1)/(NUM_STITCHES+1);
+      float dz=(z2-z1)/(NUM_STITCHES+1);
+      
+      std::cout << std::endl
+		<< "Marker 1: "
+		<< std::setw(15) << x1 << std::setw(15) << y1 << std::setw(15) << z1
+		<< std::endl
+		<< "Marker 2: "
+		<< std::setw(15) << x2 << std::setw(15) << y2 << std::setw(15) << z2
+		<< std::endl;
+
+      // this is for the start position (all stitches shouldn't be started
+      // from this)
+      // ... but they are
+//      KDL::Frame Rt;
+//      fk_solv->JntToCart( GetJointPos(), Rt );
+      
+      for( int i=0; i<NUM_STITCHES; i++ ){
+	pcl::PointXYZI pi;
+	pi.x = x1 + dx*(i+1);
+	pi.y = y1 + dy*(i+1);
+	pi.z = z1 + dz*(i+1);
+
+	std::cout << std::endl
+		<< "waypoint: "
+		<< std::setw(15) << pi.x << std::setw(15) << pi.y << std::setw(15) << pi.z
+		<< std::endl;
+
+	plan.push_back( pi );
+	pi.x = x1 + dx*(i+1)-0.003;
+	pi.y = y1 + dy*(i+1)+0.01;
+	pi.z = z1 + dz*(i+1)-0.008;
+	// what are these?!
+	if( 0 < i ){
+	  pi.x -= 0.002;
+	  pi.z -= 0.004;
+	}
+	
+	
+//	KDL::Frame Rts( Rt );
+//	Rts.p.x( pi.x );
+//	Rts.p.y( pi.y );
+//	Rts.p.z( pi.z );
+	
+	//StitchContact* stitch = new StitchContact( Rts );
+	//stitch->Start( Rt );
+	//suture.push_back( stitch );
+//	frames.push_back( Rts );
+	
+//	if( i == (NUM_STITCHES-1) ){
+	  //StitchContact* stitch = new StitchContact( Rts );
+	  //stitch->Start( Rt );
+	  //suture.push_back( stitch );
+//	  frames.push_back( Rts );
+//	}
+      }
+      
+      //StitchContact* stitch = new StitchContact( frames.front() );
+      //stitch->Start( Rt );
+      //suture.push_back( stitch );
+      
+   // }
+  }
+}
+
+
 
 ORO_CREATE_COMPONENT( suture_rtt )

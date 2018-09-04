@@ -81,8 +81,13 @@ target_link_libraries(suture_rtt
   ${catkin_LIBRARIES}
   ${orocos_kdl_LIBRARIES}
   ${kdl_conversions_LIBRARIES}
+  ${PCL_LIBRARIES}
   stitch
 )
+
+add_executable(nir_emulator src/nir_emulator.cpp )
+target_link_libraries(nir_emulator ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 # add this one later  stitch )
 
 

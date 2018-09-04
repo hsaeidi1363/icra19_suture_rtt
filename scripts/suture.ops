@@ -36,6 +36,9 @@ stream("iiwa.CmdIIWAJointPos",   ros.topic("/iiwa/command/JointPosition"))
 stream("iiwa.CmdIIWAJointVel",   ros.topic("/iiwa/command/JointVelocity"))
 stream("iiwa.CmdIIWACartPos",    ros.topic("/iiwa/command/CartesianPose"))
 
+stream("iiwa.Markers",          ros.topic("/NIROverlay/cog") )
+stream("iiwa.Plan",             ros.topic("/suture/plan") )
+
 iiwa.robot_description = "/iiwa/robot_description"
 iiwa.ref_frame = "iiwa_link_0"
 iiwa.tcp_frame = "iiwa_link_ee"

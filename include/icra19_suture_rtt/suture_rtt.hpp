@@ -47,6 +47,8 @@
 #include <kdl/chainiksolver.hpp>
 
 #include <sensor_msgs/JointState.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 #include <star_rtt/trajectory.hpp>
 
@@ -74,6 +76,10 @@ private:
      Telemetry ports
   */
 
+
+  // Port to get the NIR markers
+  RTT::InputPort< sensor_msgs::PointCloud2 >  port_markers;
+
   //! Port to get the joint positions
   RTT::InputPort< iiwa_msgs::JointPosition > port_iiwa_msr_joint_pos;
   
@@ -94,6 +100,9 @@ private:
      Command ports to IIWA
   */
 
+  // Port the set the suture plan way-points
+  RTT::OutputPort< sensor_msgs::PointCloud2 >  port_plan;
+
   //! Port to set the joint positions
   RTT::OutputPort< iiwa_msgs::JointPosition > port_iiwa_cmd_joint_pos;
 
@@ -110,7 +119,10 @@ private:
   KDL::JntArray msr_joint_vel;
   KDL::JntArray msr_joint_trq;
   KDL::Frame    msr_cart_pos;
-  KDL::Wrench   msr_cart_ft;    
+  KDL::Wrench   msr_cart_ft;  
+
+  pcl::PointCloud<pcl::PointXYZI> markers;
+  pcl::PointCloud<pcl::PointXYZI> plan;  
  
   suture_rtt::Errno readIIWA();  
   suture_rtt::Errno readIIWAJointsPos();
@@ -155,6 +167,7 @@ private:
 
   // Set the RCM to the XYZ coordinates
   void setRCM( const std::vector<double>& xyz );
+  void ReadMarkers();
 
 protected:
 
