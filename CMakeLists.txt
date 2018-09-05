@@ -34,6 +34,7 @@ find_package(catkin REQUIRED COMPONENTS
   urdf
   uta_description
   uta_rtt
+  eigen_conversions
 )
 
 find_package( Eigen3 REQUIRED )

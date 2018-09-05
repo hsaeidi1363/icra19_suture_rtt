@@ -30,6 +30,7 @@
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl_conversions/kdl_msg.h>
 #include <tf_conversions/tf_kdl.h>
+#include <eigen_conversions/eigen_kdl.h>
 
 #include<icra19_suture_rtt/stitch_contact.hpp>
 #include<icra19_suture_rtt/stitch_knot.hpp>
@@ -226,7 +227,7 @@ void suture_rtt::updateHook(){
 
 	// psuedo code: first check if the traj is detected make a plan via suture array (including where each stitch should go)=> execute the finite state machine code one by one
 	
-	if(!test_traj_initialized){
+	if(!test_traj_initialized && !plan.empty()){
 		// find the current position and add some dummy targets to it
 		KDL::Frame kdlRt;
 		KDL::JntArray jointpositions = getJointPos();
@@ -247,7 +248,9 @@ void suture_rtt::updateHook(){
 						double tension_distance = 0.2;
 						kdlRt.p.x(0.1);
 						kdlRt.p.z(0.56);
-									
+						kdlRt.p.x(plan.points[0].x);
+						kdlRt.p.y(plan.points[0].y);
+						kdlRt.p.z(plan.points[0].z);		
 						test_stitch = new StitchContact( 
 									kdlRt,
 									contact_force,
@@ -268,12 +271,55 @@ void suture_rtt::updateHook(){
 						kdlRt.p.x(0.1);
 						kdlRt.p.y(-0.54) ;
 						kdlRt.p.z(0.56);
+						kdlRt.p.x(plan.points[1].x);
+						kdlRt.p.y(plan.points[1].y);
+						kdlRt.p.z(plan.points[1].z);
 						test_stitch = new StitchKnot(   kdlRt,
 										nloops,								
 										contact_force,
 										contact_distance,
 										tension_force,
 										tension_distance); 
+						}
+						break;
+					case 3: 
+						// quick test for the contact stitch
+						{
+						double contact_force = 1.0;
+						double contact_distance = 0.1;
+						double tension_force = 2.0;
+						double tension_distance = 0.2;
+						kdlRt.p.x(0.1);
+						kdlRt.p.z(0.56);
+						kdlRt.p.x(plan.points[2].x);
+						kdlRt.p.y(plan.points[2].y);
+						kdlRt.p.z(plan.points[2].z);		
+						test_stitch = new StitchContact( 
+									kdlRt,
+									contact_force,
+									contact_distance,
+									tension_force,
+									tension_distance );
+						}
+						break;
+					case 4: 
+						// quick test for the contact stitch
+						{
+						double contact_force = 1.0;
+						double contact_distance = 0.1;
+						double tension_force = 2.0;
+						double tension_distance = 0.2;
+						kdlRt.p.x(0.1);
+						kdlRt.p.z(0.56);
+						kdlRt.p.x(plan.points[3].x);
+						kdlRt.p.y(plan.points[3].y);
+						kdlRt.p.z(plan.points[3].z);		
+						test_stitch = new StitchContact( 
+									kdlRt,
+									contact_force,
+									contact_distance,
+									tension_force,
+									tension_distance );
 						}
 						break;
 					default:
@@ -315,7 +361,7 @@ void suture_rtt::updateHook(){
 			}
 
 			setJointPos( q_new );
-			if (state == StitchBase::FINISHED && test_stitch_seq < 3){		
+			if (state == StitchBase::FINISHED && test_stitch_seq < 5){		
 				test_traj_initialized = false;
 				test_stitch_defined = false;
 				test_stitch_seq ++;
@@ -859,22 +905,23 @@ void suture_rtt::print( const KDL::Wrench& ft, const std::string& s ){
 void suture_rtt::ReadMarkers(){
 
   sensor_msgs::PointCloud2 ros_markers;
-//  if( port_markers.read( ros_markers ) == RTT::NewData && plan.empty() ){
-    if( port_markers.read( ros_markers )){
-    // markers are in the raytrix frame
-//    KDL::Frame kdl_Rt;
-//    if( EFAILURE == LookupTF( "/suture/base_link", "raytrix", kdl_Rt ) ){
-//      RTT::log(RTT::Error) << "Failed to query tf suture-raytrix" << RTT::endlog();
-//    }
-//    else{
+  if( port_markers.read( ros_markers ) == RTT::NewData && plan.empty() ){
 
-//      pcl::PointCloud<pcl::PointXYZI> pcl_markers;
-//      pcl::fromROSMsg( ros_markers, pcl_markers );
+    // markers are in the raytrix frame
+    KDL::Frame kdl_Rt;
+   // if( EFAILURE == lookupTransform( "world", "intel", kdl_Rt ) ){
+
+     // RTT::log(RTT::Error) << "Failed to query tf suture-raytrix" << RTT::endlog();
+   // }
+    //else{
+
+      //pcl::PointCloud<pcl::PointXYZI> pcl_markers;
+      //pcl::fromROSMsg( ros_markers, pcl_markers );
       
-//      Eigen::Affine3d eig_Rt;
-//      tf::transformKDLToEigen( kdl_Rt, eig_Rt );
+     // Eigen::Affine3d eig_Rt;
+     // tf::transformKDLToEigen( kdl_Rt, eig_Rt );
       
-//      pcl::transformPointCloud( pcl_markers, markers, eig_Rt );
+      //pcl::transformPointCloud( pcl_markers, markers, eig_Rt );
       
       // untanggle the repeats
  
@@ -965,7 +1012,7 @@ void suture_rtt::ReadMarkers(){
       //stitch->Start( Rt );
       //suture.push_back( stitch );
       
-   // }
+    //}
   }
 }
 
