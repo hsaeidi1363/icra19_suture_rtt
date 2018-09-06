@@ -159,6 +159,7 @@ private:
 // added HS
   bool test_traj_initialized;
   bool test_stitch_defined;
+  bool go;
   StitchBase* test_stitch;
   int test_stitch_seq;
 

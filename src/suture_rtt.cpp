@@ -81,6 +81,7 @@ suture_rtt::suture_rtt( const std::string& name ):
   init_rcm( false ),
   test_traj_initialized(false),
   test_stitch_defined(false),
+  go(false),
   test_stitch_seq(1),
 
 
@@ -218,157 +219,160 @@ bool suture_rtt::configureHook() {
 bool suture_rtt::startHook() { return true; }
 
 void suture_rtt::updateHook(){
-  ReadMarkers();
+  
   if( readIIWA() == suture_rtt::ESUCCESS && 
       readTool() == suture_rtt::ESUCCESS ){
   //  fk_solv->JntToCart( getJointPos(), msr_cart_pos );
-
-
+	if(!go){
+		ReadMarkers();
+	}else{
 
 	// psuedo code: first check if the traj is detected make a plan via suture array (including where each stitch should go)=> execute the finite state machine code one by one
 	
-	if(!test_traj_initialized && !plan.empty()){
-		// find the current position and add some dummy targets to it
-		KDL::Frame kdlRt;
-		KDL::JntArray jointpositions = getJointPos();
-		bool joints_zero =true;
-		for (int i = 0; i < 7; ++i)
-			joints_zero = joints_zero && ( (fabs(jointpositions(i)) < 0.001) ||  (fabs(jointpositions(i)) > 3.1415) );
-    		if(!joints_zero){
-			fk_solv->JntToCart( jointpositions, kdlRt );
-			std::cout <<"initial pose: " << kdlRt.p[0] << " " <<kdlRt.p[1] << " "<< kdlRt.p[2] << std::endl;		
-			if(!test_stitch_defined){
-				switch(test_stitch_seq){
-					case 1: 
-						// quick test for the contact stitch
-						{
-						double contact_force = 1.0;
-						double contact_distance = 0.1;
-						double tension_force = 2.0;
-						double tension_distance = 0.2;
-						kdlRt.p.x(0.1);
-						kdlRt.p.z(0.56);
-						kdlRt.p.x(plan.points[0].x);
-						kdlRt.p.y(plan.points[0].y);
-						kdlRt.p.z(plan.points[0].z);		
-						test_stitch = new StitchContact( 
-									kdlRt,
-									contact_force,
-									contact_distance,
-									tension_force,
-									tension_distance );
-						}
-						break;
-					case 2:
-
-						// quick test for the knot stitch
-						{
-						size_t nloops = 2;
-						double contact_force = 1.0;
-						double contact_distance = 0.1;
-						double tension_force = 2.0;
-						double tension_distance = 0.2;
-						kdlRt.p.x(0.1);
-						kdlRt.p.y(-0.54) ;
-						kdlRt.p.z(0.56);
-						kdlRt.p.x(plan.points[1].x);
-						kdlRt.p.y(plan.points[1].y);
-						kdlRt.p.z(plan.points[1].z);
-						test_stitch = new StitchKnot(   kdlRt,
-										nloops,								
+		if(!test_traj_initialized && !plan.empty()){
+			// find the current position and add some dummy targets to it
+			KDL::Frame kdlRt;
+			KDL::JntArray jointpositions = getJointPos();
+			bool joints_zero =true;
+			for (int i = 0; i < 7; ++i)
+				joints_zero = joints_zero && ( (fabs(jointpositions(i)) < 0.001) ||  (fabs(jointpositions(i)) > 3.1415) );
+	    		if(!joints_zero){
+				fk_solv->JntToCart( jointpositions, kdlRt );
+				std::cout <<"initial pose: " << kdlRt.p[0] << " " <<kdlRt.p[1] << " "<< kdlRt.p[2] << std::endl;		
+				if(!test_stitch_defined){
+					switch(test_stitch_seq){
+						case 1: 
+							// quick test for the contact stitch
+							{
+							double contact_force = 1.0;
+							double contact_distance = 0.1;
+							double tension_force = 2.0;
+							double tension_distance = 0.2;
+							kdlRt.p.x(0.1);
+							kdlRt.p.z(0.56);
+							kdlRt.p.x(plan.points[0].x);
+							kdlRt.p.y(plan.points[0].y);
+							kdlRt.p.z(plan.points[0].z);		
+							test_stitch = new StitchContact( 
+										kdlRt,
 										contact_force,
 										contact_distance,
 										tension_force,
-										tension_distance); 
-						}
-						break;
-					case 3: 
-						// quick test for the contact stitch
-						{
-						double contact_force = 1.0;
-						double contact_distance = 0.1;
-						double tension_force = 2.0;
-						double tension_distance = 0.2;
-						kdlRt.p.x(0.1);
-						kdlRt.p.z(0.56);
-						kdlRt.p.x(plan.points[2].x);
-						kdlRt.p.y(plan.points[2].y);
-						kdlRt.p.z(plan.points[2].z);		
-						test_stitch = new StitchContact( 
-									kdlRt,
-									contact_force,
-									contact_distance,
-									tension_force,
-									tension_distance );
-						}
-						break;
-					case 4: 
-						// quick test for the contact stitch
-						{
-						double contact_force = 1.0;
-						double contact_distance = 0.1;
-						double tension_force = 2.0;
-						double tension_distance = 0.2;
-						kdlRt.p.x(0.1);
-						kdlRt.p.z(0.56);
-						kdlRt.p.x(plan.points[3].x);
-						kdlRt.p.y(plan.points[3].y);
-						kdlRt.p.z(plan.points[3].z);		
-						test_stitch = new StitchContact( 
-									kdlRt,
-									contact_force,
-									contact_distance,
-									tension_force,
-									tension_distance );
-						}
-						break;
-					default:
-						std::cout << "---finished the final step---- : " <<std::endl;
-						break;
+										tension_distance );
+							}
+							break;
+						case 2:
+
+							// quick test for the knot stitch
+							{
+							size_t nloops = 2;
+							double contact_force = 1.0;
+							double contact_distance = 0.1;
+							double tension_force = 2.0;
+							double tension_distance = 0.2;
+							kdlRt.p.x(0.1);
+							kdlRt.p.y(-0.54) ;
+							kdlRt.p.z(0.56);
+							kdlRt.p.x(plan.points[1].x);
+							kdlRt.p.y(plan.points[1].y);
+							kdlRt.p.z(plan.points[1].z);
+							test_stitch = new StitchKnot(   kdlRt,
+											nloops,								
+											contact_force,
+											contact_distance,
+											tension_force,
+											tension_distance); 
+							}
+							break;
+						case 3: 
+							// quick test for the contact stitch
+							{
+							double contact_force = 1.0;
+							double contact_distance = 0.1;
+							double tension_force = 2.0;
+							double tension_distance = 0.2;
+							kdlRt.p.x(0.1);
+							kdlRt.p.z(0.56);
+							kdlRt.p.x(plan.points[2].x);
+							kdlRt.p.y(plan.points[2].y);
+							kdlRt.p.z(plan.points[2].z);		
+							test_stitch = new StitchContact( 
+										kdlRt,
+										contact_force,
+										contact_distance,
+										tension_force,
+										tension_distance );
+							}
+							break;
+						case 4: 
+							// quick test for the contact stitch
+							{
+							double contact_force = 1.0;
+							double contact_distance = 0.1;
+							double tension_force = 2.0;
+							double tension_distance = 0.2;
+							kdlRt.p.x(0.1);
+							kdlRt.p.z(0.56);
+							kdlRt.p.x(plan.points[3].x);
+							kdlRt.p.y(plan.points[3].y);
+							kdlRt.p.z(plan.points[3].z);		
+							test_stitch = new StitchContact( 
+										kdlRt,
+										contact_force,
+										contact_distance,
+										tension_force,
+										tension_distance );
+							}
+							break;
+						default:
+							std::cout << "---finished the final step---- : " <<std::endl;
+							break;
+					}
+					std::cout << "set a new target at : "<< kdlRt.p[0] << " "<<kdlRt.p[1] <<" " <<kdlRt.p[2] <<std::endl;
+					test_stitch_defined = true;
+				} 
+				test_traj_initialized = true;
+			}
+
+		}else{
+			  
+				KDL::Frame tmp_Rt;
+				fk_solv->JntToCart( getJointPos(),tmp_Rt );
+			 	KDL::Twist vw;
+				KDL::JntArray q = getJointPos();
+				KDL::JntArray qd = getJointVel(); // what should we do with this in the FRI driver?
+				KDL::Vector f(0.0, 0.0, 0.0);
+				geometry_msgs::Vector3 offset;
+				offset.x = 0.0; offset.y = 0.0; offset.z = 0.0;
+				StitchBase::State state = test_stitch->Evaluate( tmp_Rt, 
+										vw, 
+										q, 
+										qd, 
+										f,
+										true,
+										false,
+										offset ); // some of the variables are not actually set and the default zero values are called
+
+			
+				KDL::JntArray q_old = getJointPos();
+				KDL::JntArray q_new;
+				if(state == StitchBase::JOINTSTATE){
+					q_new = q;
+				}else{
+					ik_solv->CartToJnt( q_old, tmp_Rt, q_new  );
 				}
-				std::cout << "set a new target at : "<< kdlRt.p[0] << " "<<kdlRt.p[1] <<" " <<kdlRt.p[2] <<std::endl;
-				test_stitch_defined = true;
-			}
-			test_traj_initialized = true;
+
+				setJointPos( q_new );
+				if (state == StitchBase::FINISHED && test_stitch_seq < 5){		
+					test_traj_initialized = false;
+					test_stitch_defined = false;
+					test_stitch_seq ++;
+				}
+
+			
 		}
-
-	}else{
-		  
-			KDL::Frame tmp_Rt;
-			fk_solv->JntToCart( getJointPos(),tmp_Rt );
-		 	KDL::Twist vw;
-			KDL::JntArray q = getJointPos();
-			KDL::JntArray qd = getJointVel(); // what should we do with this in the FRI driver?
-			KDL::Vector f(0.0, 0.0, 0.0);
-			geometry_msgs::Vector3 offset;
-			offset.x = 0.0; offset.y = 0.0; offset.z = 0.0;
-			StitchBase::State state = test_stitch->Evaluate( tmp_Rt, 
-									vw, 
-									q, 
-									qd, 
-									f,
-									true,
-									false,
-									offset ); // some of the variables are not actually set and the default zero values are called
-
-			
-			KDL::JntArray q_old = getJointPos();
-			KDL::JntArray q_new;
-			if(state == StitchBase::JOINTSTATE){
-				q_new = q;
-			}else{
-				ik_solv->CartToJnt( q_old, tmp_Rt, q_new  );
-			}
-
-			setJointPos( q_new );
-			if (state == StitchBase::FINISHED && test_stitch_seq < 5){		
-				test_traj_initialized = false;
-				test_stitch_defined = false;
-				test_stitch_seq ++;
-			}
-			
+	
 	}
-
     sensor_msgs::PointCloud2 ros_plan;
     pcl::toROSMsg( plan, ros_plan );
     ros_plan.header.stamp = ros::Time::now();
@@ -1007,6 +1011,7 @@ void suture_rtt::ReadMarkers(){
 //	  frames.push_back( Rts );
 //	}
       }
+      go = true;
       
       //StitchContact* stitch = new StitchContact( frames.front() );
       //stitch->Start( Rt );
